@@ -1,5 +1,5 @@
 <jiggity>
-	<git path="../data/git/.git" revision="master" />
+	<git path="../data/git/.git" revision="master" allow-stash="true" />
 	<listen address="0.0.0.0" port="8090" />
 	<server>
 		<static>

@@ -45,7 +45,7 @@ public class JiggityMain {
 	    }
 	    
 	    logger.info("Loading git repo: " + conf.getGitPath() + " @ revision \"" + conf.getGitRevStr() + "\"");
-	    JiggityHandler gitReadyHandler = new JiggityHandler(new File(conf.getGitPath()), conf.getGitRevStr(), excludePatterns);
+	    JiggityHandler gitReadyHandler = new JiggityHandler(new File(conf.getGitPath()), conf.getGitRevStr(), conf.isGitAllowStash(), excludePatterns);
 	    
 	    handlers.setHandlers(new Handler[] { gitReadyHandler, /*resource_handler,*/ new DefaultHandler() });
 

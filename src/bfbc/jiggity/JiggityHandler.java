@@ -43,6 +43,7 @@ public class JiggityHandler extends AbstractHandler {
 	
 	private File repoFile;
 	private String revStr;
+	private boolean allowStash;
 	private List<Pattern> excludePatterns;
 	
 	private class Processors {
@@ -72,31 +73,13 @@ public class JiggityHandler extends AbstractHandler {
         return repository;
     }
 
-    private interface EachFile {
-    	void process(File f);
-    }
-    
-    public void walkFiles( File root, EachFile eachFile ) {
-
-        File[] list = root.listFiles();
-
-        if (list == null) return;
-
-        for (File f : list) {
-            if (f.isDirectory()) {
-                walkFiles(f, eachFile);
-            } else {
-                eachFile.process(f);
-            }
-        }
-    }
-    
     private synchronized boolean checkCommitUpdated() throws IOException {
     	
 	    	try (Repository repository = openRepository()) {
 	
 	    		// find the HEAD
-	            ObjectId lastCommitId = repository.resolve("refs/stash");
+	            ObjectId lastCommitId = null;
+	            if (allowStash) lastCommitId = repository.resolve("refs/stash");
 	            if (lastCommitId == null) lastCommitId = repository.resolve(revStr);
 
 	            if (lastCommitId == null) {
@@ -175,9 +158,10 @@ public class JiggityHandler extends AbstractHandler {
 	    	return true;
     }
     
-    public JiggityHandler(File repoFile, String revStr, List<Pattern> excludeMatchers) throws IOException {
+    public JiggityHandler(File repoFile, String revStr, boolean allowStash, List<Pattern> excludeMatchers) throws IOException {
     	this.repoFile = repoFile;
     	this.revStr = revStr;
+    	this.allowStash = allowStash;
     	this.excludePatterns = new ArrayList<>(excludeMatchers);
     	
     	checkCommitUpdated();
@@ -251,7 +235,8 @@ public class JiggityHandler extends AbstractHandler {
 			
 			try (Repository repository = openRepository()) {
 	            // find the HEAD
-	            ObjectId lastCommitId =  repository.resolve("refs/stash");
+	            ObjectId lastCommitId = null;
+	            if (allowStash) lastCommitId = repository.resolve("refs/stash");
 	            if (lastCommitId == null) lastCommitId = repository.resolve(revStr);
 	            
 	            if (lastCommitId == null) throw new IOException("Can't find a commit for \"" + revStr + "\"");

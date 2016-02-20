@@ -13,6 +13,7 @@ import org.xml.sax.SAXException;
 
 public class Configuration {
 	private String gitPath;
+	private boolean gitAllowStash;
 	private String gitRevStr = Constants.HEAD;
 	private List<String> excludePatterns = new ArrayList<>();
 	
@@ -28,11 +29,23 @@ public class Configuration {
 				{
 					XmlParser.Node gitConf = root.get("git");
 					if (gitConf != null) {
-						String gitPathStr = gitConf.getAttribute("path");
-						if (gitPathStr != null) {
-							this.gitPath = gitPathStr;
-						} else {
-							throw new ConfigurationException("Missing path attribute of <git> tag");
+						{
+							String gitPathStr = gitConf.getAttribute("path");
+							if (gitPathStr != null) {
+								this.gitPath = gitPathStr;
+							} else {
+								throw new ConfigurationException("Missing path attribute of <git> tag");
+							}
+						}
+						
+						{
+							String gitAllowStashVal = gitConf.getAttribute("allow-stash");
+							if (gitAllowStashVal != null) {
+								this.gitAllowStash = gitAllowStashVal.equals("true");
+							} else {
+								throw new ConfigurationException("Missing path attribute of <git> tag");
+							}
+							
 						}
 						
 						String gitRevStr = gitConf.getAttribute("revision");
@@ -94,6 +107,9 @@ public class Configuration {
 	}
 	public String getPort() {
 		return port;
+	}
+	public boolean isGitAllowStash() {
+		return gitAllowStash;
 	}
 	
 	public List<String> getExcludePatterns() {
