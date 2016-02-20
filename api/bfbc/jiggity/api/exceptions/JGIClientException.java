@@ -1,6 +1,6 @@
-package bfbc.gitready.api;
+package bfbc.jiggity.api.exceptions;
 
-public class ClientException extends RequestException {
+public class JGIClientException extends JGIException {
 	public enum Code {
 		BAD_REQUEST(400),
 		UNAUTHORIZED(401),
@@ -18,27 +18,27 @@ public class ClientException extends RequestException {
 	
 	private Code code;
 	
-	public ClientException(Code code) {
+	public JGIClientException(Code code) {
 		super();
 		this.code = code;
 	}
 
-	public ClientException(Code code, String message, Throwable cause) {
+	public JGIClientException(Code code, String message, Throwable cause) {
 		super(message, cause);
 		this.code = code;
 	}
 
-	public ClientException(Code code, String message) {
+	public JGIClientException(Code code, String message) {
 		super(message);
 		this.code = code;
 	}
 
-	public ClientException(Code code, Throwable cause) {
+	public JGIClientException(Code code, Throwable cause) {
 		super(cause);
 		this.code = code;
 	}
 	
-	public ClientException() {
+	public JGIClientException() {
 		this(Code.BAD_REQUEST);
 	}
 	

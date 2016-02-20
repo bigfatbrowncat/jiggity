@@ -27,13 +27,13 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bfbc.gitready.api.ClientException;
-import bfbc.gitready.api.JGIScript;
-import bfbc.gitready.api.RequestException;
-import bfbc.gitready.api.RequestExceptionProcessor;
-import bfbc.gitready.api.RequestProcessor;
-import bfbc.gitready.api.ServerException;
-import bfbc.gitready.api.ServerException.Code;
+import bfbc.jiggity.api.JGIScript;
+import bfbc.jiggity.api.exceptions.JGIClientException;
+import bfbc.jiggity.api.exceptions.JGIException;
+import bfbc.jiggity.api.exceptions.JGIServerException;
+import bfbc.jiggity.api.exceptions.JGIServerException.Code;
+import bfbc.jiggity.api.JGIExceptionHandler;
+import bfbc.jiggity.api.JGIProcessor;
 import bfbc.jiggity.compiler.JavaCompilerTool;
 import bfbc.jiggity.compiler.JavaCompilerTool.TargetClassLoader;
 
@@ -72,81 +72,107 @@ public class JiggityHandler extends AbstractHandler {
         return repository;
     }
 
-    private synchronized boolean checkCommitUpdated() throws IOException {
-    	try (Repository repository = openRepository()) {
-            // find the HEAD
-            ObjectId lastCommitId = repository.resolve(revStr);
-            if (lastCommitId == null) throw new IOException("Can't find a commit for \"" + revStr + "\"");
-            if (processorObjects.containsKey(lastCommitId)) {
-            	return true;
+    private interface EachFile {
+    	void process(File f);
+    }
+    
+    public void walkFiles( File root, EachFile eachFile ) {
+
+        File[] list = root.listFiles();
+
+        if (list == null) return;
+
+        for (File f : list) {
+            if (f.isDirectory()) {
+                walkFiles(f, eachFile);
             } else {
-            	processorObjects.put(lastCommitId, new Processors());
-
-	            ArrayList<JavaCompilerTool.SourceInMemory> srcClasses = new ArrayList<>();
-	            
-	            // a RevWalk allows to walk over commits based on some filtering that is defined
-	            try (RevWalk revWalk = new RevWalk(repository)) {
-	                RevCommit commit = revWalk.parseCommit(lastCommitId);
-	                // and using commit's tree find the path
-	                RevTree tree = commit.getTree();
-	                logger.info("Collecting java classes from commit: " + tree.getName());
-	
-	                try (TreeWalk treeWalk = new TreeWalk(repository)) {
-	                    treeWalk.addTree(tree);
-	                    treeWalk.setRecursive(true);
-	                    
-	                    while (treeWalk.next()) {
-	                    	ObjectId objectId = treeWalk.getObjectId(0);
-	                    	ObjectLoader loader = repository.open(objectId);
-	                    	
-	                    	String fullName = treeWalk.getPathString();
-	                    	if (fullName.endsWith(".java")) {
-	                    		String sourceCode = new String(loader.getBytes());
-	                            srcClasses.add(new JavaCompilerTool.SourceInMemory(fullName, sourceCode));
-	                        	logger.debug("Adding " + treeWalk.getPathString() + " to compilation queue");
-	                    	}
-	                    }
-	                }
-	                
-	            	logger.info("Compiling the classes...");
-	                TargetClassLoader compiledSourcesClassLoader = JavaCompilerTool.compile(ClassLoader.getSystemClassLoader(), srcClasses);
-	                if (compiledSourcesClassLoader != null) {
-	                	logger.info("All classes compiled successful. Searching and instantiating all processor objects...");
-	                	processorObjects.get(lastCommitId).scripts.clear();
-	                	
-	                	for (JavaCompilerTool.TargetClassDescriptor tcd : compiledSourcesClassLoader.nameSet()) {
-
-							try {
-								Class<?> clz = compiledSourcesClassLoader.loadClass(tcd.className);
-	                		
-		                		boolean isJGIScript = false;
-		                		if (JGIScript.class.isAssignableFrom(clz)) isJGIScript = true;
-		                		
-		                		if (isJGIScript) {
-		                			try {
-			                			logger.debug("Class " + tcd.className + " (file " + tcd.filePath + ") is a request processor. Creating an instance for the commit");
-										processorObjects.get(lastCommitId).scripts.put((Class<JGIScript>)clz, (JGIScript)clz.newInstance());
-									} catch (InstantiationException | IllegalAccessException e) {
-										logger.error("Can't instantiate the JGI script object. There is no empty constructor or it is not accessible");
-									}
-		                		}
-		                		
-		                		processorObjects.get(lastCommitId).javaClassesForFiles.put(tcd.filePath, (Class<?>)clz);
-		                		
-							} catch (ClassNotFoundException e1) {
-								logger.warn("Can't load the class " + tcd.className + " (file " + tcd.filePath + "). A very strange bug cause the class has just been compiled");
-								e1.printStackTrace();
-							}
-
-	                	}
-	                } else {
-	                	logger.error("Compilation failed");
-	                	return false;
-	                }
-	            }
+                eachFile.process(f);
             }
-		}
-    	return true;
+        }
+    }
+    
+    private synchronized boolean checkCommitUpdated() throws IOException {
+    	
+	    	try (Repository repository = openRepository()) {
+	
+	    		// find the HEAD
+	            ObjectId lastCommitId = repository.resolve("refs/stash");
+	            if (lastCommitId == null) lastCommitId = repository.resolve(revStr);
+
+	            if (lastCommitId == null) {
+	            	throw new IOException("Can't find a commit for \"" + revStr + "\"");
+	            }
+	            if (processorObjects.containsKey(lastCommitId)) {
+	            	return true;
+	            } else {
+	            	processorObjects.put(lastCommitId, new Processors());
+	
+		            ArrayList<JavaCompilerTool.SourceInMemory> srcClasses = new ArrayList<>();
+		            
+		            // a RevWalk allows to walk over commits based on some filtering that is defined
+		            try (RevWalk revWalk = new RevWalk(repository)) {
+		                RevCommit commit = revWalk.parseCommit(lastCommitId);
+
+		                // and using commit's tree find the path
+		                RevTree tree = commit.getTree();
+		                logger.info("Collecting java classes from commit: " + tree.getName());
+		
+		                try (TreeWalk treeWalk = new TreeWalk(repository)) {
+		                    treeWalk.addTree(tree);
+		                    treeWalk.setRecursive(true);
+		                    
+		                    while (treeWalk.next()) {
+		                    	ObjectId objectId = treeWalk.getObjectId(0);
+		                    	ObjectLoader loader = repository.open(objectId);
+		                    	
+		                    	String fullName = treeWalk.getPathString();
+		                    	if (fullName.endsWith(".java")) {
+		                    		String sourceCode = new String(loader.getBytes());
+		                            srcClasses.add(new JavaCompilerTool.SourceInMemory(fullName, sourceCode));
+		                        	logger.debug("Adding " + treeWalk.getPathString() + " to compilation queue");
+		                    	}
+		                    }
+		                }
+		                
+		            	logger.info("Compiling the classes...");
+		                TargetClassLoader compiledSourcesClassLoader = JavaCompilerTool.compile(ClassLoader.getSystemClassLoader(), srcClasses);
+		                if (compiledSourcesClassLoader != null) {
+		                	logger.info("All classes compiled successful. Searching and instantiating all processor objects...");
+		                	processorObjects.get(lastCommitId).scripts.clear();
+		                	
+		                	for (JavaCompilerTool.TargetClassDescriptor tcd : compiledSourcesClassLoader.nameSet()) {
+	
+								try {
+									Class<?> clz = compiledSourcesClassLoader.loadClass(tcd.className);
+		                		
+			                		boolean isJGIScript = false;
+			                		if (JGIScript.class.isAssignableFrom(clz)) isJGIScript = true;
+			                		
+			                		if (isJGIScript) {
+			                			try {
+				                			logger.debug("Class " + tcd.className + " (file " + tcd.filePath + ") is a request processor. Creating an instance for the commit");
+											processorObjects.get(lastCommitId).scripts.put((Class<JGIScript>)clz, (JGIScript)clz.newInstance());
+										} catch (InstantiationException | IllegalAccessException e) {
+											logger.error("Can't instantiate the JGI script object. There is no empty constructor or it is not accessible");
+										}
+			                		}
+			                		
+			                		processorObjects.get(lastCommitId).javaClassesForFiles.put(tcd.filePath, (Class<?>)clz);
+			                		
+								} catch (ClassNotFoundException e1) {
+									logger.warn("Can't load the class " + tcd.className + " (file " + tcd.filePath + "). A very strange bug cause the class has just been compiled");
+									e1.printStackTrace();
+								}
+	
+		                	}
+		                } else {
+		                	logger.error("Compilation failed");
+		                	return false;
+		                }
+		            }
+	            }
+			}
+	    	return true;
     }
     
     public JiggityHandler(File repoFile, String revStr, List<Pattern> excludeMatchers) throws IOException {
@@ -157,13 +183,13 @@ public class JiggityHandler extends AbstractHandler {
     	checkCommitUpdated();
     }
     
-    private void handleErrorDefault(String target, HttpServletRequest request, HttpServletResponse response, RequestException exception) {
+    private void handleErrorDefault(String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) {
     	int code = -1;
-        if (exception instanceof ServerException) {
-        	ServerException serverException = (ServerException)exception;
+        if (exception instanceof JGIServerException) {
+        	JGIServerException serverException = (JGIServerException)exception;
         	code = serverException.getCode().httpCode;
-        } else if (exception instanceof ClientException) {
-        	ClientException clientException = (ClientException)exception;
+        } else if (exception instanceof JGIClientException) {
+        	JGIClientException clientException = (JGIClientException)exception;
         	code = clientException.getCode().httpCode;
         } 
         	
@@ -193,15 +219,15 @@ public class JiggityHandler extends AbstractHandler {
     }
     
     
-    private void handleError(ObjectId lastCommitId, String target, HttpServletRequest request, HttpServletResponse response, RequestException exception) throws Exception {
+    private void handleError(ObjectId lastCommitId, String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) throws Exception {
     	logger.info("Responding with error response to the client (request: \"" + target + "\" from " + request.getRemoteAddr() + ", exception " + exception);
 
         // Searching for a proper exception processor
         boolean requestExceptionProcessorFound = false;
         for (Object obj : processorObjects.get(lastCommitId).scripts.values()) {
-        	if (obj instanceof RequestExceptionProcessor) {
-	        	RequestExceptionProcessor processor = (RequestExceptionProcessor)obj;
-	        	requestExceptionProcessorFound = processor.processError(target, request, response, exception);
+        	if (obj instanceof JGIExceptionHandler) {
+	        	JGIExceptionHandler processor = (JGIExceptionHandler)obj;
+	        	requestExceptionProcessorFound = processor.onError(target, request, response, exception);
 	        	if (requestExceptionProcessorFound) {
 	                logger.info("Error processed by " + processor.getClass().getCanonicalName());
 					return;
@@ -225,12 +251,15 @@ public class JiggityHandler extends AbstractHandler {
 			
 			try (Repository repository = openRepository()) {
 	            // find the HEAD
-	            ObjectId lastCommitId = repository.resolve(revStr);
+	            ObjectId lastCommitId =  repository.resolve("refs/stash");
+	            if (lastCommitId == null) lastCommitId = repository.resolve(revStr);
+	            
 	            if (lastCommitId == null) throw new IOException("Can't find a commit for \"" + revStr + "\"");
 	
 	            // Selecting the commit
 	            try (RevWalk revWalk = new RevWalk(repository)) {
 	                RevCommit commit = revWalk.parseCommit(lastCommitId);
+	                	
 	                // and using commit's tree find the path
 	                RevTree tree = commit.getTree();
 	                logger.debug("Current commit: " + tree.getName());
@@ -252,9 +281,10 @@ public class JiggityHandler extends AbstractHandler {
 	                    
 	                    // 1. Searching for the file
 	                    boolean fileFound = false;
+	                    String foundFilePath = null;
 	                    while (treeWalk.next()) {
-	                        String foundFilePath = treeWalk.getPathString();
-	                        if (!matchExcluded(foundFilePath) && foundFilePath.equals(requestPath)) {
+	                        foundFilePath = treeWalk.getPathString();
+	                        if (foundFilePath.equals(requestPath)) {
 	                        	fileFound = true;
 	                        	break;
 	                        }
@@ -270,12 +300,15 @@ public class JiggityHandler extends AbstractHandler {
 	                        if (scriptForClass != null) {
 	                        	// 1a. Executing the file if it's a script
 		                        logger.info("The requested file is a JGI class. Executing it");
-		                        scriptForClass.exec(target, request, response);
+		                        scriptForClass.onExecute(target, request, response);
+		                        return;
 	                        } else {
 		                        // 1b. Loading the file if it's not a script
-		                        loader = repository.open(objectId);
-		                        fileObjectInputStream = loader.openStream();
-		                        logger.info("File found for request \"" + target + "\". Serving it.");
+	                        	loader = repository.open(objectId);
+		                        if (!matchExcluded(foundFilePath)) {
+		                        	fileObjectInputStream = loader.openStream();
+		                        	logger.info("File found for request \"" + target + "\". Serving it.");
+		                        }
 	                        }
 	                    } else {
 	                        logger.info("No file for request \"" + target + "\". Trying to process without a file.");
@@ -284,9 +317,9 @@ public class JiggityHandler extends AbstractHandler {
 	                    // 2. Searching for a proper processor
 	                    boolean requestProcessorFound = false;
 	                    for (Object obj : processorObjects.get(lastCommitId).scripts.values()) {
-	                    	if (obj instanceof RequestProcessor) {
-		                    	RequestProcessor processor = (RequestProcessor)obj;
-		                    	requestProcessorFound = processor.process(target, fileObjectInputStream, request, response);
+	                    	if (obj instanceof JGIProcessor) {
+		                    	JGIProcessor processor = (JGIProcessor)obj;
+		                    	requestProcessorFound = processor.onRequest(target, fileObjectInputStream, request, response);
 		                    	if (requestProcessorFound) {
 				                    logger.info("Request \"" + target + "\" from " + request.getRemoteAddr() + " processed by " + processor.getClass().getName());
 									break;
@@ -296,7 +329,7 @@ public class JiggityHandler extends AbstractHandler {
 	                    
 	                    // 3. If no processor found...
 	                    if (!requestProcessorFound) {
-	                    	if (loader != null) {
+	                    	if (loader != null && !matchExcluded(foundFilePath)) {
 			                    // ...and there is a loaded object, sending it directly
 			                    loader.copyTo(response.getOutputStream());
 			                    response.getOutputStream().close();
@@ -305,12 +338,12 @@ public class JiggityHandler extends AbstractHandler {
 	                    	} else {
 			                    // ...and no object is loaded object, sending 404
 			                    logger.info("Request \"" + target + "\" from " + request.getRemoteAddr() + " can't be processed. No file/processor found. Responding with code 404.");
-	                    		throw new ClientException(ClientException.Code.NOT_FOUND, "Request can't be processed. No file or processor found");
+	                    		throw new JGIClientException(JGIClientException.Code.NOT_FOUND, "Request can't be processed. No file or processor found");
 
 	                    	}
 	                    }
 	                }
-	            } catch (ClientException e) {
+	            } catch (JGIClientException e) {
 	    			logger.error("Client exception occured with code " + e.getCode().httpCode + ": " + e.getMessage());
 	    			e.printStackTrace();
 	    			
@@ -322,7 +355,7 @@ public class JiggityHandler extends AbstractHandler {
 			logger.error("General server exception occured: " + e.getMessage());
 			e.printStackTrace();
 			
-    		handleErrorDefault(target, request, response, new ServerException(Code.INTERNAL_ERROR, e));
+    		handleErrorDefault(target, request, response, new JGIServerException(Code.INTERNAL_ERROR, e));
 		}
 	}
 

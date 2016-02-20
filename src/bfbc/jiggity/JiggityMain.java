@@ -20,21 +20,16 @@ import org.slf4j.LoggerFactory;
 import bfbc.jiggity.compiler.JavaCompilerTool;
 import bfbc.jiggity.config.Configuration;
 
-public class Main {
+public class JiggityMain {
 	
 	private static final String CONFIG_FILE = "jiggity.conf.xml";
-	private static Logger logger = LoggerFactory.getLogger(Main.class);
+	private static Logger logger = LoggerFactory.getLogger(JiggityMain.class);
 
 	public static void main(String[] args) throws Exception {
 
 	    logger.info("Parsing configuration file: " + CONFIG_FILE);
 	    Configuration conf = new Configuration(new File(CONFIG_FILE));
 
-	    InetSocketAddress addressToListen = new InetSocketAddress(InetAddress.getByName(conf.getInetAddress()), Integer.parseInt(conf.getPort()));
-	    Server server = new Server(addressToListen);
-	    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
-	    server.addConnector(connector);
-	    
 	    /*ResourceHandler resource_handler = new ResourceHandler();
 	    resource_handler.setDirectoriesListed(true);
 	    resource_handler.setWelcomeFiles(new String[]{ "index.html" });
@@ -53,6 +48,13 @@ public class Main {
 	    JiggityHandler gitReadyHandler = new JiggityHandler(new File(conf.getGitPath()), conf.getGitRevStr(), excludePatterns);
 	    
 	    handlers.setHandlers(new Handler[] { gitReadyHandler, /*resource_handler,*/ new DefaultHandler() });
+
+	    logger.info("Starting server");
+	    InetSocketAddress addressToListen = new InetSocketAddress(InetAddress.getByName(conf.getInetAddress()), Integer.parseInt(conf.getPort()));
+	    Server server = new Server(addressToListen);
+	    NetworkTrafficServerConnector connector = new NetworkTrafficServerConnector(server);
+	    server.addConnector(connector);
+
 	    server.setHandler(handlers);
 
 	    server.start();

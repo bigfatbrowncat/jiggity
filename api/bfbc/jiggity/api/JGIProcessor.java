@@ -1,11 +1,13 @@
-package bfbc.gitready.api;
+package bfbc.jiggity.api;
 
 import java.io.InputStream;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public abstract class RequestProcessor extends JGIScript {
+import bfbc.jiggity.api.exceptions.JGIException;
+
+public abstract class JGIProcessor extends JGIScript {
 
 	/**
 	 * This function is called by the server to process a request form the client
@@ -16,5 +18,5 @@ public abstract class RequestProcessor extends JGIScript {
 	 * @return
 	 * @throws Exception
 	 */
-	public abstract boolean process(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws RequestException; 
+	public abstract boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException; 
 }

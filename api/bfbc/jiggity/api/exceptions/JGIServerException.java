@@ -1,6 +1,6 @@
-package bfbc.gitready.api;
+package bfbc.jiggity.api.exceptions;
 
-public class ServerException extends RequestException {
+public class JGIServerException extends JGIException {
 	public enum Code {
 		INTERNAL_ERROR(500),
 		NOT_IMPLEMENTED(501);
@@ -14,27 +14,27 @@ public class ServerException extends RequestException {
 	
 	private Code code;
 	
-	public ServerException(Code code) {
+	public JGIServerException(Code code) {
 		super();
 		this.code = code;
 	}
 
-	public ServerException(Code code, String message, Throwable cause) {
+	public JGIServerException(Code code, String message, Throwable cause) {
 		super(message, cause);
 		this.code = code;
 	}
 
-	public ServerException(Code code, String message) {
+	public JGIServerException(Code code, String message) {
 		super(message);
 		this.code = code;
 	}
 
-	public ServerException(Code code, Throwable cause) {
+	public JGIServerException(Code code, Throwable cause) {
 		super(cause);
 		this.code = code;
 	}
 	
-	public ServerException() {
+	public JGIServerException() {
 		this(Code.INTERNAL_ERROR);
 	}
 	

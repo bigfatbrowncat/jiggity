@@ -4,6 +4,7 @@
 	<server>
 		<static>
 			<exclude path="^jgi"/>
+			<exclude path=".java$"/>
 		</static>
 	</server>
 </jiggity>
