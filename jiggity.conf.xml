@@ -1,9 +1,9 @@
 <jiggity>
-	<git path="../data/git/.git" revision="master" allow-stash="true" />
+	<git path="../demo-site/.git" revision="master" allow-stash="true" />
 	<listen address="0.0.0.0" port="8090" />
 	<server>
 		<static>
-			<exclude path="^jgi"/>
+			<!--<exclude path="^jgi"/>-->
 			<exclude path=".java$"/>
 		</static>
 	</server>
