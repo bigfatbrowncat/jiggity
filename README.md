@@ -26,7 +26,7 @@ starts serving fresh files to the clients immediately
 <p>This repo is your site. It will be served by Jiggity</p>
 </li>
 
-<li>Put <code>jiggity-<version>-jar-with-dependencies.jar</code> and <code>jiggity.conf.xml</code> into some path 
+<li>Put <code>jiggity-[version]-jar-with-dependencies.jar</code> and <code>jiggity.conf.xml</code> into some path 
 (other than <code>your_repo_path</code>)</li>
 <li>Change the git path option in the <code>jiggity.conf.xml</code> to a proper git repo path (<code>your_repo_path/.git</code>)</li>
 <li>Start the jar:
