@@ -27,8 +27,18 @@ public class JiggityMain {
 
 	public static void main(String[] args) throws Exception {
 
+		File workingDir = new File("");
+    	logger.info("Working directory: " + workingDir.getAbsolutePath());
+		
+	    File configFile = new File(CONFIG_FILE);
+	    
+	    if (!configFile.exists()) {
+	    	logger.error("Can't find a necessary configuration file: " + configFile.getPath());
+	    	return;
+	    }
+	    	
 	    logger.info("Parsing configuration file: " + CONFIG_FILE);
-	    Configuration conf = new Configuration(new File(CONFIG_FILE));
+	    Configuration conf = new Configuration(configFile);
 
 	    /*ResourceHandler resource_handler = new ResourceHandler();
 	    resource_handler.setDirectoriesListed(true);

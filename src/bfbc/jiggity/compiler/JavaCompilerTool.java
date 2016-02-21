@@ -73,7 +73,8 @@ public class JavaCompilerTool {
     public static class TargetClassLoader extends ClassLoader {
     	
         private Map<TargetClassDescriptor, MemoryByteCode> classes = new HashMap<TargetClassDescriptor, MemoryByteCode>();
-     
+        
+        @Override
         protected Class<?> findClass(String name) throws ClassNotFoundException {
             MemoryByteCode mbc = null; //classes.get(name);
             for (TargetClassDescriptor tcd : classes.keySet()) {

@@ -118,9 +118,9 @@ public class JiggityHandler extends AbstractHandler {
 		                }
 		                
 		            	logger.info("Compiling the classes...");
-		                TargetClassLoader compiledSourcesClassLoader = JavaCompilerTool.compile(ClassLoader.getSystemClassLoader(), srcClasses);
+		                TargetClassLoader compiledSourcesClassLoader = JavaCompilerTool.compile(this.getClass().getClassLoader(), srcClasses);
 		                if (compiledSourcesClassLoader != null) {
-		                	logger.info("All classes compiled successful. Searching and instantiating all processor objects...");
+		                	logger.info("All classes compiled successfully. Instantiating all JGI objects...");
 		                	processorObjects.get(lastCommitId).scripts.clear();
 		                	
 		                	for (JavaCompilerTool.TargetClassDescriptor tcd : compiledSourcesClassLoader.nameSet()) {
