@@ -155,3 +155,28 @@ public class ErrorTest extends JGIExceptionHandler {
 	}
 }
 ```
+### Using stash for preview
+Each time when you change anything on the server, you need to make a commit, so the server updates the data. It's not comfortable during continuous development. If you don't want to commit every change (and make long and ugly history in your repo), you can use `git stash`.
+
+In order to use this method, set `allow-stash="true"` option in `jiggity.conf.xml`.
+
+Imagine that you have just made some changes in your repo and want to test them.
+
+First of all, add all the changes to index:
+```
+git add <your_files>
+```
+
+Then stash the changes keeping indexed files
+```
+git stash save --keep-index
+```
+
+After you have done that, open your site in the browser &#151; it should update all the data.
+
+After testing, unstash the changes with
+```
+git stash pop
+```
+
+And then you can commit your modifications if you want, or change something and repeat.
