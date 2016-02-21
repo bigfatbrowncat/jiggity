@@ -30,7 +30,7 @@ starts serving fresh files to the clients immediately
 (other than <code>your_repo_path</code>)</li>
 <li>Change the git path option in the <code>jiggity.conf.xml</code> to a proper git repo path (<code>your_repo_path/.git</code>)</li>
 <li>Start the jar:
-<p><pre><code>java -jar jiggity-<version>-jar-with-dependencies.jar
+<p><pre><code>java -jar jiggity-[version]-jar-with-dependencies.jar
 </code></pre></p>
 </li>
 <li>Open a browser and enter <code>http://localhost:8090/index.html</code> into address bar</li>
