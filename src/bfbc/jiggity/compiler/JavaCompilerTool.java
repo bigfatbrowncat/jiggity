@@ -51,14 +51,14 @@ public class JavaCompilerTool {
 		public TargetClassDescriptor(String filePath, String className) {
 			super();
 			this.filePath = filePath;
-			this.className = className;
+			this.className = className.replace('/', '.');
 		}
 		
 		@Override
 		public boolean equals(Object obj) {
 			if (obj instanceof TargetClassDescriptor) {
 				TargetClassDescriptor tcd = (TargetClassDescriptor)obj;
-				return filePath.equals(tcd.filePath) && className.replace('/', '.').equals(tcd.className.replace('/', '.'));
+				return filePath.equals(tcd.filePath) && className.equals(tcd.className);
 			}
 			return false;
 			
@@ -75,16 +75,30 @@ public class JavaCompilerTool {
         private Map<TargetClassDescriptor, MemoryByteCode> classes = new HashMap<TargetClassDescriptor, MemoryByteCode>();
         
         @Override
+        public InputStream getResourceAsStream(String name) {
+        	if (name.endsWith(".class")) name = name.substring(0, name.length() - ".class".length());
+            for (TargetClassDescriptor tcd : classes.keySet()) {
+            	if (tcd.className.equals(name.replace('/', '.'))) {
+            		
+            		ByteArrayInputStream bais = new ByteArrayInputStream(classes.get(tcd).getBytes());
+            		return bais;
+            	}
+            }
+        	return super.getResourceAsStream(name);
+        }
+        
+        @Override
         protected Class<?> findClass(String name) throws ClassNotFoundException {
             MemoryByteCode mbc = null; //classes.get(name);
             for (TargetClassDescriptor tcd : classes.keySet()) {
-            	if (tcd.className.equals(name)) {
+            	if (tcd.className.equals(name.replace('/', '.'))) {
             		mbc = classes.get(tcd);
+            		break;
             	}
             }
 
-            if (mbc == null) {           
-            	return super.findClass(name);           
+            if (mbc == null) {
+            	return super.findClass(name);
             }
             
             return defineClass(name.replace('/', '.'), mbc.getBytes(), 0, mbc.getBytes().length);   

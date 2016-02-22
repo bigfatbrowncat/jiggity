@@ -126,7 +126,7 @@ public class JiggityHandler extends AbstractHandler {
 		                	for (JavaCompilerTool.TargetClassDescriptor tcd : compiledSourcesClassLoader.nameSet()) {
 	
 								try {
-									Class<?> clz = compiledSourcesClassLoader.loadClass(tcd.className);
+									Class<?> clz = compiledSourcesClassLoader.loadClass(tcd.className.replace('/', '.'));
 		                		
 			                		boolean isJGIScript = false;
 			                		if (JGIScript.class.isAssignableFrom(clz)) isJGIScript = true;
