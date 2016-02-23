@@ -3,6 +3,7 @@ package jiggity;
 import static org.junit.Assert.*;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -13,6 +14,8 @@ import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
+
+import javax.net.ssl.HttpsURLConnection;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -65,6 +68,42 @@ public class BasicTest {
 
 		return response.toString();
 	}
+	
+	private String sendPost(String url, String urlParameters) throws Exception {
+
+		URL obj = new URL(url);
+		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+
+		//add reuqest header
+		con.setRequestMethod("POST");
+		con.setRequestProperty("User-Agent", USER_AGENT);
+		con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+		
+		// Send post request
+		con.setDoOutput(true);
+		DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+		wr.writeBytes(urlParameters);
+		wr.flush();
+		wr.close();
+
+		int responseCode = con.getResponseCode();
+		System.out.println("\nSending 'POST' request to URL : " + url);
+		System.out.println("Post parameters : " + urlParameters);
+		System.out.println("Response Code : " + responseCode);
+
+		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+		String inputLine;
+		StringBuffer response = new StringBuffer();
+
+		while ((inputLine = in.readLine()) != null) {
+			response.append(inputLine + '\n');
+		}
+		in.close();
+		
+		return response.toString();
+
+	}
+
 
 	private static class TestConf {
 		public final File gitDir, rootDir;
@@ -135,11 +174,20 @@ public class BasicTest {
 		
 		JiggityServer srv = new JiggityServer();
 		srv.start(tstConf.rootDir);
+
+		{
+			String readTest = sendGet("http://localhost:8090/test.txt");
+			String[] readLines = readTest.split("\n");
+			assertEquals(lines[0], readLines[0]);
+			assertEquals(lines[1], readLines[1]);
+		}
+		{
+			String readTest = sendPost("http://localhost:8090/test.txt", "");
+			String[] readLines = readTest.split("\n");
+			assertEquals(lines[0], readLines[0]);
+			assertEquals(lines[1], readLines[1]);
+		}
 		
-		String readTest = sendGet("http://localhost:8090/test.txt");
-		String[] readLines = readTest.split("\n");
-		assertEquals(lines[0], readLines[0]);
-		assertEquals(lines[1], readLines[1]);
 		
 		srv.stop();
 	}
@@ -199,10 +247,18 @@ public class BasicTest {
 		JiggityServer srv = new JiggityServer();
 		srv.start(tstConf.rootDir);
 		
-		String readTest = sendGet("http://localhost:8090/CallMe.java");
-		String[] readLines = readTest.split("\n");
-		assertEquals(lines[0], readLines[0]);
-		assertEquals(lines[1], readLines[1]);
+		{
+			String readTest = sendGet("http://localhost:8090/CallMe.java");
+			String[] readLines = readTest.split("\n");
+			assertEquals(lines[0], readLines[0]);
+			assertEquals(lines[1], readLines[1]);
+		}
+		{
+			String readTest = sendPost("http://localhost:8090/CallMe.java", "");
+			String[] readLines = readTest.split("\n");
+			assertEquals(lines[0], readLines[0]);
+			assertEquals(lines[1], readLines[1]);
+		}
 		
 		srv.stop();
 	}
