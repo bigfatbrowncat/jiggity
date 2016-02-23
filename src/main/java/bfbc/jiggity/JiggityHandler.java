@@ -205,7 +205,7 @@ public class JiggityHandler extends AbstractHandler {
     
     private void handleError(ObjectId lastCommitId, String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) throws Exception {
     	logger.info("Responding with error response to the client (request: \"" + target + "\" from " + request.getRemoteAddr() + ", exception " + exception);
-
+    	
         // Searching for a proper exception processor
         boolean requestExceptionProcessorFound = false;
         for (Object obj : processorObjects.get(lastCommitId).scripts.values()) {

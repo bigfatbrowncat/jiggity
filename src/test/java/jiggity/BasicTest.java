@@ -1,6 +1,6 @@
 package jiggity;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -14,8 +14,6 @@ import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
-
-import javax.net.ssl.HttpsURLConnection;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -45,7 +43,18 @@ public class BasicTest {
 		}
 	}
 
-	private String sendGet(String url) throws IOException {
+	private static class Response {
+		public final int code;
+		public final String text;
+		public Response(int code, String text) {
+			super();
+			this.code = code;
+			this.text = text;
+		}
+		
+	}
+	
+	private Response sendGet(String url) throws IOException {
 
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
@@ -60,20 +69,25 @@ public class BasicTest {
 		logger.info("Sending 'GET' request to URL : " + url);
 		logger.info("Response Code : " + responseCode);
 
-		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-		String inputLine;
-		StringBuffer response = new StringBuffer();
-
-		while ((inputLine = in.readLine()) != null) {
-			response.append(inputLine + '\n');
+		if (responseCode == 200) { 
+		
+			BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+			String inputLine;
+			StringBuffer response = new StringBuffer();
+	
+			while ((inputLine = in.readLine()) != null) {
+				response.append(inputLine + '\n');
+			}
+			in.close();
+	
+			logger.info("Received response: " + response);
+			return new Response(200, response.toString());
+		} else {
+			return new Response(responseCode, null);
 		}
-		in.close();
-
-		logger.info("Received response: " + response);
-		return response.toString();
 	}
 	
-	private String sendPost(String url, String urlParameters) throws Exception {
+	private Response sendPost(String url, String urlParameters) throws Exception {
 
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
@@ -95,17 +109,22 @@ public class BasicTest {
 		logger.info("Post parameters : " + urlParameters);
 		logger.info("Response Code : " + responseCode);
 
-		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-		String inputLine;
-		StringBuffer response = new StringBuffer();
-
-		while ((inputLine = in.readLine()) != null) {
-			response.append(inputLine + '\n');
+		if (responseCode == 200) { 
+			
+			BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+			String inputLine;
+			StringBuffer response = new StringBuffer();
+	
+			while ((inputLine = in.readLine()) != null) {
+				response.append(inputLine + '\n');
+			}
+			in.close();
+	
+			logger.info("Received response: " + response);
+			return new Response(200, response.toString());
+		} else {
+			return new Response(responseCode, null);
 		}
-		in.close();
-		
-		logger.info("Received response: " + response);
-		return response.toString();
 
 	}
 
@@ -181,13 +200,13 @@ public class BasicTest {
 			srv.start(tstConf.rootDir);
 	
 			{
-				String readTest = sendGet("http://localhost:8090/test.txt");
+				String readTest = sendGet("http://localhost:8090/test.txt").text;
 				String[] readLines = readTest.split("\n");
 				assertEquals(lines[0], readLines[0]);
 				assertEquals(lines[1], readLines[1]);
 			}
 			{
-				String readTest = sendPost("http://localhost:8090/test.txt", "");
+				String readTest = sendPost("http://localhost:8090/test.txt", "").text;
 				String[] readLines = readTest.split("\n");
 				assertEquals(lines[0], readLines[0]);
 				assertEquals(lines[1], readLines[1]);
@@ -254,13 +273,13 @@ public class BasicTest {
 			srv.start(tstConf.rootDir);
 			
 			{
-				String readTest = sendGet("http://localhost:8090/CallMe.java");
+				String readTest = sendGet("http://localhost:8090/CallMe.java").text;
 				String[] readLines = readTest.split("\n");
 				assertEquals(lines[0], readLines[0]);
 				assertEquals(lines[1], readLines[1]);
 			}
 			{
-				String readTest = sendPost("http://localhost:8090/CallMe.java", "");
+				String readTest = sendPost("http://localhost:8090/CallMe.java", "").text;
 				String[] readLines = readTest.split("\n");
 				assertEquals(lines[0], readLines[0]);
 				assertEquals(lines[1], readLines[1]);
@@ -342,16 +361,76 @@ public class BasicTest {
 			srv.start(tstConf.rootDir);
 			
 			{
-				String readTest = sendGet("http://localhost:8090/file.txt");
+				String readTest = sendGet("http://localhost:8090/file.txt").text;
 				String[] readLines = readTest.split("\n");
 				assertEquals('!' + lines[0], readLines[0]);
 				assertEquals(lines[1], readLines[1]);
 			}
 			{
-				String readTest = sendPost("http://localhost:8090/file.txt", "");
+				String readTest = sendPost("http://localhost:8090/file.txt", "").text;
 				String[] readLines = readTest.split("\n");
 				assertEquals('!' + lines[0], readLines[0]);
 				assertEquals(lines[1], readLines[1]);
+			}
+		} finally {
+			srv.stop();
+		}
+	}
+
+	@Test
+	public void simpleExceptionHandlerTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "simpleExceptionHandlerTest";
+			TestConf tstConf = createGitForServer(testPrefix);
+			
+			String[] code = new String[] {
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+
+					"import bfbc.jiggity.api.JGIExceptionHandler;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIClientException;",
+
+					"public class ExHandler extends JGIExceptionHandler {",
+					"	@Override",
+					"	public boolean onError(String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) throws Exception {",
+					"		response.getWriter().println(\"Error occured with code \" + ((JGIClientException)exception).getCode().httpCode);",
+					"		response.getWriter().close();",
+					"		return true;",
+					"	}",
+					"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "ExHandler.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			{
+				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
+				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
+				pw.println("<jiggity>");
+				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
+				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
+				pw.println("	<server>");
+				pw.println("		<static>");
+				pw.println("			<exclude path=\".java$\"/>");
+				pw.println("		</static>");
+				pw.println("	</server>");
+				pw.println("</jiggity>");
+				pw.close();
+			}
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				String readTest = sendGet("http://localhost:8090/notfound.txt").text;
+				String[] readLines = readTest.split("\n");
+				assertEquals("Error occured with code 404", readLines[0]);
+			}
+			{
+				String readTest = sendPost("http://localhost:8090/notfound.txt", "").text;
+				String[] readLines = readTest.split("\n");
+				assertEquals("Error occured with code 404", readLines[0]);
 			}
 		} finally {
 			srv.stop();
