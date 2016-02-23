@@ -23,6 +23,8 @@ import bfbc.jiggity.JiggityServer;
 
 public class BasicTest {
 
+	private static String CONF_FILE = "jiggity.conf.xml";
+	
 	private static final String USER_AGENT = "Mozilla/5.0";
 
 	private static File tmpDir;
@@ -104,7 +106,8 @@ public class BasicTest {
 	@Test
 	public void simpleStaticRequestTest() throws Exception {
 
-		TestConf tstConf = createGitForServer("simpleStaticRequestTest");
+		String testPrefix = "simpleStaticRequestTest";
+		TestConf tstConf = createGitForServer(testPrefix);
 		
 		String[] lines = new String[] {
 			"This is a text file",
@@ -116,10 +119,10 @@ public class BasicTest {
 		tstConf.git.commit().setMessage("init").call();
 
 		{
-			File testConfFile = new File(tstConf.rootDir, "jiggity.conf.xml");
+			File testConfFile = new File(tstConf.rootDir, CONF_FILE);
 			PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
 			pw.println("<jiggity>");
-			pw.println("	<git path=\"../simpleStaticRequestTest-git/.git\" revision=\"master\" allow-stash=\"true\" />");
+			pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
 			pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
 			pw.println("	<server>");
 			pw.println("		<static>");
@@ -140,4 +143,68 @@ public class BasicTest {
 		
 		srv.stop();
 	}
+	
+	@Test
+	public void simpleScriptTest() throws Exception {
+
+		String testPrefix = "simpleScriptTest";
+		TestConf tstConf = createGitForServer(testPrefix);
+		
+		String[] lines = new String[] {
+			"first line",
+			"second line"
+		};
+		
+		String[] code = new String[] {
+			"package somepkg;",
+			"import java.io.IOException;",
+
+			"import javax.servlet.http.*;",
+
+			"import bfbc.jiggity.api.exceptions.JGIException;",
+			"import bfbc.jiggity.api.JGIScript;",
+
+			"public class CallMe extends JGIScript {",
+			"	@Override",
+			"	public void onExecute(String target, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+			"		try {",
+			"			response.getOutputStream().println(\"" + lines[0] + "\");",
+			"			response.getOutputStream().println(\"" + lines[1] + "\");",
+			"			response.getOutputStream().close();",
+			"		} catch (IOException e) {",
+			"			e.printStackTrace();",
+			"		}",
+			"	}",
+			"}"
+		};
+		
+		addFileToGit(tstConf.git, tstConf.gitDir, "CallMe.java", code);
+		tstConf.git.commit().setMessage("init").call();
+
+		{
+			File testConfFile = new File(tstConf.rootDir, CONF_FILE);
+			PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
+			pw.println("<jiggity>");
+			pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
+			pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
+			pw.println("	<server>");
+			pw.println("		<static>");
+			pw.println("			<exclude path=\".java$\"/>");
+			pw.println("		</static>");
+			pw.println("	</server>");
+			pw.println("</jiggity>");
+			pw.close();
+		}
+		
+		JiggityServer srv = new JiggityServer();
+		srv.start(tstConf.rootDir);
+		
+		String readTest = sendGet("http://localhost:8090/CallMe.java");
+		String[] readLines = readTest.split("\n");
+		assertEquals(lines[0], readLines[0]);
+		assertEquals(lines[1], readLines[1]);
+		
+		srv.stop();
+	}
+	
 }
