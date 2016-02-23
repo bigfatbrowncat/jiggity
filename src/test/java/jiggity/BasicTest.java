@@ -21,13 +21,16 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoFilepatternException;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bfbc.jiggity.JiggityServer;
 
 public class BasicTest {
-
-	private static String CONF_FILE = "jiggity.conf.xml";
 	
+	private static String CONF_FILE = "jiggity.conf.xml";
+	private static Logger logger = LoggerFactory.getLogger(BasicTest.class);
+
 	private static final String USER_AGENT = "Mozilla/5.0";
 
 	private static File tmpDir;
@@ -35,7 +38,7 @@ public class BasicTest {
 	static {
 		try {
 			tmpDir = Files.createTempDirectory("test-tmp-").toFile();
-			System.out.println(BasicTest.class.getName() + " - test dir " + tmpDir.getAbsolutePath());
+			logger.info("Created test directory: " + tmpDir.getAbsolutePath());
 			tmpDir.deleteOnExit();
 		} catch (IOException e) {
 			throw new RuntimeException("Can't create temporary directory");
@@ -54,8 +57,8 @@ public class BasicTest {
 		con.setRequestProperty("User-Agent", USER_AGENT);
 
 		int responseCode = con.getResponseCode();
-		System.out.println("\nSending 'GET' request to URL : " + url);
-		System.out.println("Response Code : " + responseCode);
+		logger.info("Sending 'GET' request to URL : " + url);
+		logger.info("Response Code : " + responseCode);
 
 		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
 		String inputLine;
@@ -66,6 +69,7 @@ public class BasicTest {
 		}
 		in.close();
 
+		logger.info("Received response: " + response);
 		return response.toString();
 	}
 	
@@ -87,9 +91,9 @@ public class BasicTest {
 		wr.close();
 
 		int responseCode = con.getResponseCode();
-		System.out.println("\nSending 'POST' request to URL : " + url);
-		System.out.println("Post parameters : " + urlParameters);
-		System.out.println("Response Code : " + responseCode);
+		logger.info("Sending 'POST' request to URL : " + url);
+		logger.info("Post parameters : " + urlParameters);
+		logger.info("Response Code : " + responseCode);
 
 		BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
 		String inputLine;
@@ -100,6 +104,7 @@ public class BasicTest {
 		}
 		in.close();
 		
+		logger.info("Received response: " + response);
 		return response.toString();
 
 	}
@@ -129,7 +134,7 @@ public class BasicTest {
 		return new TestConf(testGitDir, testRootDir, testGit);
 	}
 	
-	private static void addFileToGit(Git git, File gitDir, String fileName, String[] lines) throws NoFilepatternException, GitAPIException, FileNotFoundException {
+	private static void addFileToGitIndex(Git git, File gitDir, String fileName, String[] lines) throws NoFilepatternException, GitAPIException, FileNotFoundException {
 		{
 			File testFile = new File(gitDir, fileName);
 			PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testFile)));
@@ -144,123 +149,213 @@ public class BasicTest {
 	
 	@Test
 	public void simpleStaticRequestTest() throws Exception {
-
-		String testPrefix = "simpleStaticRequestTest";
-		TestConf tstConf = createGitForServer(testPrefix);
-		
-		String[] lines = new String[] {
-			"This is a text file",
-			"Second line"
-		};
-		
-		
-		addFileToGit(tstConf.git, tstConf.gitDir, "test.txt", lines);
-		tstConf.git.commit().setMessage("init").call();
-
-		{
-			File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-			PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-			pw.println("<jiggity>");
-			pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-			pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-			pw.println("	<server>");
-			pw.println("		<static>");
-			pw.println("			<exclude path=\".java$\"/>");
-			pw.println("		</static>");
-			pw.println("	</server>");
-			pw.println("</jiggity>");
-			pw.close();
-		}
-		
 		JiggityServer srv = new JiggityServer();
-		srv.start(tstConf.rootDir);
-
-		{
-			String readTest = sendGet("http://localhost:8090/test.txt");
-			String[] readLines = readTest.split("\n");
-			assertEquals(lines[0], readLines[0]);
-			assertEquals(lines[1], readLines[1]);
-		}
-		{
-			String readTest = sendPost("http://localhost:8090/test.txt", "");
-			String[] readLines = readTest.split("\n");
-			assertEquals(lines[0], readLines[0]);
-			assertEquals(lines[1], readLines[1]);
-		}
+		try {
+			String testPrefix = "simpleStaticRequestTest";
+			TestConf tstConf = createGitForServer(testPrefix);
+			
+			String[] lines = new String[] {
+				"This is a text file",
+				"Second line"
+			};
+			
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "test.txt", lines);
+			tstConf.git.commit().setMessage("init").call();
+	
+			{
+				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
+				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
+				pw.println("<jiggity>");
+				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
+				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
+				pw.println("	<server>");
+				pw.println("		<static>");
+				pw.println("			<exclude path=\".java$\"/>");
+				pw.println("		</static>");
+				pw.println("	</server>");
+				pw.println("</jiggity>");
+				pw.close();
+			}
+			
+			srv.start(tstConf.rootDir);
+	
+			{
+				String readTest = sendGet("http://localhost:8090/test.txt");
+				String[] readLines = readTest.split("\n");
+				assertEquals(lines[0], readLines[0]);
+				assertEquals(lines[1], readLines[1]);
+			}
+			{
+				String readTest = sendPost("http://localhost:8090/test.txt", "");
+				String[] readLines = readTest.split("\n");
+				assertEquals(lines[0], readLines[0]);
+				assertEquals(lines[1], readLines[1]);
+			}
 		
-		
-		srv.stop();
+		} finally {
+			srv.stop();
+		}
 	}
 	
 	@Test
 	public void simpleScriptTest() throws Exception {
-
-		String testPrefix = "simpleScriptTest";
-		TestConf tstConf = createGitForServer(testPrefix);
-		
-		String[] lines = new String[] {
-			"first line",
-			"second line"
-		};
-		
-		String[] code = new String[] {
-			"package somepkg;",
-			"import java.io.IOException;",
-
-			"import javax.servlet.http.*;",
-
-			"import bfbc.jiggity.api.exceptions.JGIException;",
-			"import bfbc.jiggity.api.JGIScript;",
-
-			"public class CallMe extends JGIScript {",
-			"	@Override",
-			"	public void onExecute(String target, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
-			"		try {",
-			"			response.getOutputStream().println(\"" + lines[0] + "\");",
-			"			response.getOutputStream().println(\"" + lines[1] + "\");",
-			"			response.getOutputStream().close();",
-			"		} catch (IOException e) {",
-			"			e.printStackTrace();",
-			"		}",
-			"	}",
-			"}"
-		};
-		
-		addFileToGit(tstConf.git, tstConf.gitDir, "CallMe.java", code);
-		tstConf.git.commit().setMessage("init").call();
-
-		{
-			File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-			PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-			pw.println("<jiggity>");
-			pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-			pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-			pw.println("	<server>");
-			pw.println("		<static>");
-			pw.println("			<exclude path=\".java$\"/>");
-			pw.println("		</static>");
-			pw.println("	</server>");
-			pw.println("</jiggity>");
-			pw.close();
-		}
-		
 		JiggityServer srv = new JiggityServer();
-		srv.start(tstConf.rootDir);
-		
-		{
-			String readTest = sendGet("http://localhost:8090/CallMe.java");
-			String[] readLines = readTest.split("\n");
-			assertEquals(lines[0], readLines[0]);
-			assertEquals(lines[1], readLines[1]);
-		}
-		{
-			String readTest = sendPost("http://localhost:8090/CallMe.java", "");
-			String[] readLines = readTest.split("\n");
-			assertEquals(lines[0], readLines[0]);
-			assertEquals(lines[1], readLines[1]);
-		}
-		
-		srv.stop();
-	}
+		try {
+			String testPrefix = "simpleScriptTest";
+			TestConf tstConf = createGitForServer(testPrefix);
+			
+			String[] lines = new String[] {
+				"first line",
+				"second line"
+			};
+			
+			String[] code = new String[] {
+				"package somepkg;",
+				"import java.io.IOException;",
 	
+				"import javax.servlet.http.*;",
+	
+				"import bfbc.jiggity.api.exceptions.JGIException;",
+				"import bfbc.jiggity.api.JGIScript;",
+	
+				"public class CallMe extends JGIScript {",
+				"	@Override",
+				"	public void onExecute(String target, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+				"		try {",
+				"			response.getOutputStream().println(\"" + lines[0] + "\");",
+				"			response.getOutputStream().println(\"" + lines[1] + "\");",
+				"			response.getOutputStream().close();",
+				"		} catch (IOException e) {",
+				"			e.printStackTrace();",
+				"		}",
+				"	}",
+				"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "CallMe.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			{
+				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
+				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
+				pw.println("<jiggity>");
+				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
+				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
+				pw.println("	<server>");
+				pw.println("		<static>");
+				pw.println("			<exclude path=\".java$\"/>");
+				pw.println("		</static>");
+				pw.println("	</server>");
+				pw.println("</jiggity>");
+				pw.close();
+			}
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				String readTest = sendGet("http://localhost:8090/CallMe.java");
+				String[] readLines = readTest.split("\n");
+				assertEquals(lines[0], readLines[0]);
+				assertEquals(lines[1], readLines[1]);
+			}
+			{
+				String readTest = sendPost("http://localhost:8090/CallMe.java", "");
+				String[] readLines = readTest.split("\n");
+				assertEquals(lines[0], readLines[0]);
+				assertEquals(lines[1], readLines[1]);
+			}
+			
+		} finally {
+			srv.stop();
+		}
+	}
+
+	@Test
+	public void simpleProcessorWithFileTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "simpleProcessorWithFileTest";
+			TestConf tstConf = createGitForServer(testPrefix);
+			
+			String[] lines = new String[] {
+				"first line",
+				"second line"
+			};
+			
+			String[] code = new String[] {
+					"package pkg;",
+					"import java.io.IOException;",
+					"import java.io.InputStream;",
+	
+					"import javax.servlet.ServletOutputStream;",
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+	
+					"import bfbc.jiggity.api.JGIProcessor;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException.Code;",
+	
+					"public class Processor extends JGIProcessor {",
+						
+					"	@Override",
+					"	public boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+					"		try {",
+					"			if (fileStream == null) return false;",
+								
+					"			ServletOutputStream out = response.getOutputStream();",
+					"			out.write('!');",
+					"			int r;",
+					"			while ((r = fileStream.read()) != -1) {",
+					"				out.write(r);",
+					"			}",
+					"			out.close();",
+								
+					"			return true;",
+					"		} catch (IOException e) {",
+					"			throw new JGIServerException(Code.INTERNAL_ERROR, e);",
+					"		}",
+					"	}",
+					"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "file.txt", lines);
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			{
+				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
+				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
+				pw.println("<jiggity>");
+				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
+				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
+				pw.println("	<server>");
+				pw.println("		<static>");
+				pw.println("			<exclude path=\".java$\"/>");
+				pw.println("		</static>");
+				pw.println("	</server>");
+				pw.println("</jiggity>");
+				pw.close();
+			}
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				String readTest = sendGet("http://localhost:8090/file.txt");
+				String[] readLines = readTest.split("\n");
+				assertEquals('!' + lines[0], readLines[0]);
+				assertEquals(lines[1], readLines[1]);
+			}
+			{
+				String readTest = sendPost("http://localhost:8090/file.txt", "");
+				String[] readLines = readTest.split("\n");
+				assertEquals('!' + lines[0], readLines[0]);
+				assertEquals(lines[1], readLines[1]);
+			}
+		} finally {
+			srv.stop();
+		}
+	}
+
 }
