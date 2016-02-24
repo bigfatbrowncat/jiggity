@@ -73,7 +73,7 @@ public class JiggityServer {
 	}
 	
 	public void stop() throws Exception {
-		server.stop();
+		if (server != null) server.stop();
 	}
 	
 	public static void main(String[] args) throws Exception {

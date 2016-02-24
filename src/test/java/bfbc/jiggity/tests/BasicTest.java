@@ -1,35 +1,29 @@
-package jiggity;
+package bfbc.jiggity.tests;
 
+import static bfbc.jiggity.tests.tools.Tools.addFileToGitIndex;
+import static bfbc.jiggity.tests.tools.Tools.createGitForServer;
+import static bfbc.jiggity.tests.tools.Tools.sendGet;
+import static bfbc.jiggity.tests.tools.Tools.sendPost;
 import static org.junit.Assert.assertEquals;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.file.Files;
 
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.api.errors.NoFilepatternException;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bfbc.jiggity.JiggityServer;
+import bfbc.jiggity.tests.tools.TestConf;
 
 public class BasicTest {
 	
 	private static String CONF_FILE = "jiggity.conf.xml";
 	private static Logger logger = LoggerFactory.getLogger(BasicTest.class);
-
-	private static final String USER_AGENT = "Mozilla/5.0";
 
 	private static File tmpDir;
 
@@ -43,135 +37,14 @@ public class BasicTest {
 		}
 	}
 
-	private static class Response {
-		public final int code;
-		public final String text;
-		public Response(int code, String text) {
-			super();
-			this.code = code;
-			this.text = text;
-		}
-		
-	}
-	
-	private Response sendGet(String url) throws IOException {
 
-		URL obj = new URL(url);
-		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-
-		// optional default is GET
-		con.setRequestMethod("GET");
-
-		// add request header
-		con.setRequestProperty("User-Agent", USER_AGENT);
-
-		int responseCode = con.getResponseCode();
-		logger.info("Sending 'GET' request to URL : " + url);
-		logger.info("Response Code : " + responseCode);
-
-		if (responseCode == 200) { 
-		
-			BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-			String inputLine;
-			StringBuffer response = new StringBuffer();
-	
-			while ((inputLine = in.readLine()) != null) {
-				response.append(inputLine + '\n');
-			}
-			in.close();
-	
-			logger.info("Received response: " + response);
-			return new Response(200, response.toString());
-		} else {
-			return new Response(responseCode, null);
-		}
-	}
-	
-	private Response sendPost(String url, String urlParameters) throws Exception {
-
-		URL obj = new URL(url);
-		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-
-		//add reuqest header
-		con.setRequestMethod("POST");
-		con.setRequestProperty("User-Agent", USER_AGENT);
-		con.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
-		
-		// Send post request
-		con.setDoOutput(true);
-		DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-		wr.writeBytes(urlParameters);
-		wr.flush();
-		wr.close();
-
-		int responseCode = con.getResponseCode();
-		logger.info("Sending 'POST' request to URL : " + url);
-		logger.info("Post parameters : " + urlParameters);
-		logger.info("Response Code : " + responseCode);
-
-		if (responseCode == 200) { 
-			
-			BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-			String inputLine;
-			StringBuffer response = new StringBuffer();
-	
-			while ((inputLine = in.readLine()) != null) {
-				response.append(inputLine + '\n');
-			}
-			in.close();
-	
-			logger.info("Received response: " + response);
-			return new Response(200, response.toString());
-		} else {
-			return new Response(responseCode, null);
-		}
-
-	}
-
-
-	private static class TestConf {
-		public final File gitDir, rootDir;
-		public final Git git;
-		public TestConf(File gitDir, File rootDir, Git git) {
-			super();
-			this.gitDir = gitDir;
-			this.rootDir = rootDir;
-			this.git = git;
-		}
-		
-	}
-	
-	private static TestConf createGitForServer(String prefix) throws IllegalStateException, GitAPIException, IOException {
-		File testGitDir = new File(tmpDir, prefix + "-git");
-		File testRootDir = new File(tmpDir, prefix + "-root");
-		testGitDir.mkdirs();
-		testRootDir.mkdirs();
-
-		Git.init().setDirectory(testGitDir).call();
-		Git testGit = Git.open(testGitDir);
-
-		return new TestConf(testGitDir, testRootDir, testGit);
-	}
-	
-	private static void addFileToGitIndex(Git git, File gitDir, String fileName, String[] lines) throws NoFilepatternException, GitAPIException, FileNotFoundException {
-		{
-			File testFile = new File(gitDir, fileName);
-			PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testFile)));
-			for (String l : lines) {
-				pw.println(l);
-			}
-			pw.close();
-		}
-
-		git.add().addFilepattern(fileName).call();
-	}
 	
 	@Test
 	public void simpleStaticRequestTest() throws Exception {
 		JiggityServer srv = new JiggityServer();
 		try {
 			String testPrefix = "simpleStaticRequestTest";
-			TestConf tstConf = createGitForServer(testPrefix);
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] lines = new String[] {
 				"This is a text file",
@@ -222,7 +95,7 @@ public class BasicTest {
 		JiggityServer srv = new JiggityServer();
 		try {
 			String testPrefix = "simpleScriptTest";
-			TestConf tstConf = createGitForServer(testPrefix);
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] lines = new String[] {
 				"first line",
@@ -295,7 +168,7 @@ public class BasicTest {
 		JiggityServer srv = new JiggityServer();
 		try {
 			String testPrefix = "simpleProcessorWithFileTest";
-			TestConf tstConf = createGitForServer(testPrefix);
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] lines = new String[] {
 				"first line",
@@ -382,7 +255,7 @@ public class BasicTest {
 		JiggityServer srv = new JiggityServer();
 		try {
 			String testPrefix = "simpleExceptionHandlerTest";
-			TestConf tstConf = createGitForServer(testPrefix);
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] code = new String[] {
 					"import javax.servlet.http.HttpServletRequest;",
