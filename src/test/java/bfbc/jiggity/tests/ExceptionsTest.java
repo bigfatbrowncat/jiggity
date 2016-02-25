@@ -22,7 +22,7 @@ import bfbc.jiggity.JiggityServer;
 import bfbc.jiggity.tests.tools.Response;
 import bfbc.jiggity.tests.tools.TestConf;
 
-public class NotFoundTest {
+public class ExceptionsTest {
 	private static String CONF_FILE = "jiggity.conf.xml";
 	private static Logger logger = LoggerFactory.getLogger(BasicTest.class);
 
@@ -77,4 +77,5 @@ public class NotFoundTest {
 			srv.stop();
 		}
 	}
+	
 }

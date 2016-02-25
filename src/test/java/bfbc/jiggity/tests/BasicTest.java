@@ -40,10 +40,10 @@ public class BasicTest {
 
 	
 	@Test
-	public void simpleStaticRequestTest() throws Exception {
+	public void staticRequestTest() throws Exception {
 		JiggityServer srv = new JiggityServer();
 		try {
-			String testPrefix = "simpleStaticRequestTest";
+			String testPrefix = "staticRequestTest";
 			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] lines = new String[] {
@@ -91,10 +91,10 @@ public class BasicTest {
 	}
 	
 	@Test
-	public void simpleScriptTest() throws Exception {
+	public void scriptTest() throws Exception {
 		JiggityServer srv = new JiggityServer();
 		try {
-			String testPrefix = "simpleScriptTest";
+			String testPrefix = "scriptTest";
 			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] lines = new String[] {
@@ -164,10 +164,10 @@ public class BasicTest {
 	}
 
 	@Test
-	public void simpleProcessorWithFileTest() throws Exception {
+	public void processorWithFileTest() throws Exception {
 		JiggityServer srv = new JiggityServer();
 		try {
-			String testPrefix = "simpleProcessorWithFileTest";
+			String testPrefix = "processorWithFileTest";
 			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] lines = new String[] {
@@ -251,10 +251,10 @@ public class BasicTest {
 	}
 
 	@Test
-	public void simpleExceptionHandlerTest() throws Exception {
+	public void exceptionHandlerTest() throws Exception {
 		JiggityServer srv = new JiggityServer();
 		try {
-			String testPrefix = "simpleExceptionHandlerTest";
+			String testPrefix = "exceptionHandlerTest";
 			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] code = new String[] {
@@ -304,6 +304,77 @@ public class BasicTest {
 				String readTest = sendPost("http://localhost:8090/notfound.txt", "").text;
 				String[] readLines = readTest.split("\n");
 				assertEquals("Error occured with code 404", readLines[0]);
+			}
+		} finally {
+			srv.stop();
+		}
+	}
+
+	@Test
+	public void processorRequestWithoutFileTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "processorRequestWithoutFileTest";
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
+			
+			String[] code = new String[] {
+					"package pkg;",
+					"import java.io.IOException;",
+					"import java.io.InputStream;",
+	
+					"import javax.servlet.ServletOutputStream;",
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+	
+					"import bfbc.jiggity.api.JGIProcessor;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException.Code;",
+	
+					"public class Processor extends JGIProcessor {",
+						
+					"	@Override",
+					"	public boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+					"		try {",
+					"			ServletOutputStream out = response.getOutputStream();",
+					"			out.println(\"Some text: \" + target);",
+					"			out.close();",
+
+					"			return true;",
+					"		} catch (IOException e) {",
+					"			throw new JGIServerException(Code.INTERNAL_ERROR, e);",
+					"		}",
+					"	}",
+					"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			{
+				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
+				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
+				pw.println("<jiggity>");
+				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
+				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
+				pw.println("	<server>");
+				pw.println("		<static>");
+				pw.println("			<exclude path=\".java$\"/>");
+				pw.println("		</static>");
+				pw.println("	</server>");
+				pw.println("</jiggity>");
+				pw.close();
+			}
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				String readTest = sendGet("http://localhost:8090/some_request").text;
+				assertEquals("Some text: /some_request\n", readTest);
+			}
+			{
+				String readTest = sendGet("http://localhost:8090/some_request").text;
+				assertEquals("Some text: /some_request\n", readTest);
 			}
 		} finally {
 			srv.stop();
