@@ -1,17 +1,14 @@
 package bfbc.jiggity.tests;
 
 import static bfbc.jiggity.tests.tools.Tools.addFileToGitIndex;
+import static bfbc.jiggity.tests.tools.Tools.createDefaultConfFile;
 import static bfbc.jiggity.tests.tools.Tools.createGitForServer;
 import static bfbc.jiggity.tests.tools.Tools.sendGet;
 import static bfbc.jiggity.tests.tools.Tools.sendPost;
-
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.nio.file.Files;
 
 import org.junit.Test;
@@ -19,11 +16,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bfbc.jiggity.JiggityServer;
+import bfbc.jiggity.api.exceptions.JGIClientException;
+import bfbc.jiggity.api.exceptions.JGIServerException;
 import bfbc.jiggity.tests.tools.Response;
 import bfbc.jiggity.tests.tools.TestConf;
 
 public class ExceptionsTest {
-	private static String CONF_FILE = "jiggity.conf.xml";
 	private static Logger logger = LoggerFactory.getLogger(BasicTest.class);
 
 	private static File tmpDir;
@@ -47,20 +45,7 @@ public class ExceptionsTest {
 			
 			tstConf.git.commit().setMessage("init").call();
 
-			{
-				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-				pw.println("<jiggity>");
-				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-				pw.println("	<server>");
-				pw.println("		<static>");
-				pw.println("			<exclude path=\".java$\"/>");
-				pw.println("		</static>");
-				pw.println("	</server>");
-				pw.println("</jiggity>");
-				pw.close();
-			}
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
 			
 			srv.start(tstConf.rootDir);
 	
@@ -78,4 +63,102 @@ public class ExceptionsTest {
 		}
 	}
 	
+	@Test
+	public void processorThrowsServerExceptionTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "processorThrowsServerExceptionTest";
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
+			
+			String[] code = new String[] {
+					"package pkg;",
+					"import java.io.IOException;",
+					"import java.io.InputStream;",
+	
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+	
+					"import bfbc.jiggity.api.JGIProcessor;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException.Code;",
+	
+					"public class Processor extends JGIProcessor {",
+						
+					"	@Override",
+					"	public boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+					"		throw new JGIServerException(Code.INTERNAL_ERROR);",
+					"	}",
+					"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				int readTest = sendGet("http://localhost:8090/some_request").code;
+				assertEquals(JGIServerException.Code.INTERNAL_ERROR.httpCode, readTest);
+			}
+			{
+				int readTest = sendGet("http://localhost:8090/some_request").code;
+				assertEquals(JGIServerException.Code.INTERNAL_ERROR.httpCode, readTest);
+			}
+		} finally {
+			srv.stop();
+		}
+	}
+
+	@Test
+	public void processorThrowsClientExceptionTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "processorThrowsClientExceptionTest";
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
+			
+			String[] code = new String[] {
+					"package pkg;",
+					"import java.io.IOException;",
+					"import java.io.InputStream;",
+	
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+	
+					"import bfbc.jiggity.api.JGIProcessor;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIClientException;",
+					"import bfbc.jiggity.api.exceptions.JGIClientException.Code;",
+	
+					"public class Processor extends JGIProcessor {",
+						
+					"	@Override",
+					"	public boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+					"		throw new JGIClientException(Code.FORBIDDEN);",
+					"	}",
+					"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
+			tstConf.git.commit().setMessage("init").call();
+			
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				int readTest = sendGet("http://localhost:8090/some_request").code;
+				assertEquals(JGIClientException.Code.FORBIDDEN.httpCode, readTest);
+			}
+			{
+				int readTest = sendGet("http://localhost:8090/some_request").code;
+				assertEquals(JGIClientException.Code.FORBIDDEN.httpCode, readTest);
+			}
+		} finally {
+			srv.stop();
+		}
+	}
+
 }

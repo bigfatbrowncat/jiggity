@@ -1,9 +1,6 @@
 package bfbc.jiggity.tests;
 
-import static bfbc.jiggity.tests.tools.Tools.addFileToGitIndex;
-import static bfbc.jiggity.tests.tools.Tools.createGitForServer;
-import static bfbc.jiggity.tests.tools.Tools.sendGet;
-import static bfbc.jiggity.tests.tools.Tools.sendPost;
+import static bfbc.jiggity.tests.tools.Tools.*;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
@@ -19,10 +16,10 @@ import org.slf4j.LoggerFactory;
 
 import bfbc.jiggity.JiggityServer;
 import bfbc.jiggity.tests.tools.TestConf;
+import bfbc.jiggity.tests.tools.Tools;
 
 public class BasicTest {
 	
-	private static String CONF_FILE = "jiggity.conf.xml";
 	private static Logger logger = LoggerFactory.getLogger(BasicTest.class);
 
 	private static File tmpDir;
@@ -55,20 +52,7 @@ public class BasicTest {
 			addFileToGitIndex(tstConf.git, tstConf.gitDir, "test.txt", lines);
 			tstConf.git.commit().setMessage("init").call();
 	
-			{
-				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-				pw.println("<jiggity>");
-				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-				pw.println("	<server>");
-				pw.println("		<static>");
-				pw.println("			<exclude path=\".java$\"/>");
-				pw.println("		</static>");
-				pw.println("	</server>");
-				pw.println("</jiggity>");
-				pw.close();
-			}
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
 			
 			srv.start(tstConf.rootDir);
 	
@@ -128,20 +112,7 @@ public class BasicTest {
 			addFileToGitIndex(tstConf.git, tstConf.gitDir, "CallMe.java", code);
 			tstConf.git.commit().setMessage("init").call();
 	
-			{
-				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-				pw.println("<jiggity>");
-				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-				pw.println("	<server>");
-				pw.println("		<static>");
-				pw.println("			<exclude path=\".java$\"/>");
-				pw.println("		</static>");
-				pw.println("	</server>");
-				pw.println("</jiggity>");
-				pw.close();
-			}
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
 			
 			srv.start(tstConf.rootDir);
 			
@@ -216,20 +187,7 @@ public class BasicTest {
 			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
 			tstConf.git.commit().setMessage("init").call();
 	
-			{
-				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-				pw.println("<jiggity>");
-				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-				pw.println("	<server>");
-				pw.println("		<static>");
-				pw.println("			<exclude path=\".java$\"/>");
-				pw.println("		</static>");
-				pw.println("	</server>");
-				pw.println("</jiggity>");
-				pw.close();
-			}
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
 			
 			srv.start(tstConf.rootDir);
 			
@@ -278,20 +236,7 @@ public class BasicTest {
 			addFileToGitIndex(tstConf.git, tstConf.gitDir, "ExHandler.java", code);
 			tstConf.git.commit().setMessage("init").call();
 	
-			{
-				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-				pw.println("<jiggity>");
-				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-				pw.println("	<server>");
-				pw.println("		<static>");
-				pw.println("			<exclude path=\".java$\"/>");
-				pw.println("		</static>");
-				pw.println("	</server>");
-				pw.println("</jiggity>");
-				pw.close();
-			}
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
 			
 			srv.start(tstConf.rootDir);
 			
@@ -351,20 +296,7 @@ public class BasicTest {
 			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
 			tstConf.git.commit().setMessage("init").call();
 	
-			{
-				File testConfFile = new File(tstConf.rootDir, CONF_FILE);
-				PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
-				pw.println("<jiggity>");
-				pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" allow-stash=\"true\" />");
-				pw.println("	<listen address=\"0.0.0.0\" port=\"8090\" />");
-				pw.println("	<server>");
-				pw.println("		<static>");
-				pw.println("			<exclude path=\".java$\"/>");
-				pw.println("		</static>");
-				pw.println("	</server>");
-				pw.println("</jiggity>");
-				pw.close();
-			}
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
 			
 			srv.start(tstConf.rootDir);
 			

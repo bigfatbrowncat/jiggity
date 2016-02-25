@@ -43,7 +43,7 @@ public class Configuration {
 							if (gitAllowStashVal != null) {
 								this.gitAllowStash = gitAllowStashVal.equals("true");
 							} else {
-								throw new ConfigurationException("Missing path attribute of <git> tag");
+								this.gitAllowStash = false;
 							}
 							
 						}

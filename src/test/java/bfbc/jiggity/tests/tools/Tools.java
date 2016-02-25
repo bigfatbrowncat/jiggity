@@ -19,9 +19,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Tools {
+	private static Logger logger = LoggerFactory.getLogger(Tools.class);
+
 	private static final String USER_AGENT = "Mozilla/5.0";
 
-	private static Logger logger = LoggerFactory.getLogger(Tools.class);
+	private static String CONF_FILE = "jiggity.conf.xml";
 
 	public static Response sendGet(String url) throws IOException {
 
@@ -120,5 +122,15 @@ public class Tools {
 		}
 
 		git.add().addFilepattern(fileName).call();
+	}
+	
+	public static void createDefaultConfFile(String testPrefix, File rootDir) throws FileNotFoundException {
+		File testConfFile = new File(rootDir, CONF_FILE);
+		PrintWriter pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfFile)));
+		pw.println("<jiggity>");
+		pw.println("	<git path=\"../" + testPrefix + "-git/.git\" revision=\"master\" />");
+		pw.println("	<listen port=\"8090\" />");
+		pw.println("</jiggity>");
+		pw.close();
 	}
 }
