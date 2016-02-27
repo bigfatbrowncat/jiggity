@@ -21,8 +21,8 @@ import bfbc.jiggity.api.exceptions.JGIServerException;
 import bfbc.jiggity.tests.tools.Response;
 import bfbc.jiggity.tests.tools.TestConf;
 
-public class ExceptionsTest {
-	private static Logger logger = LoggerFactory.getLogger(BasicTest.class);
+public class WildExceptionsTest {
+	private static Logger logger = LoggerFactory.getLogger(WildExceptionsTest.class);
 
 	private static File tmpDir;
 
@@ -35,39 +35,12 @@ public class ExceptionsTest {
 			throw new RuntimeException("Can't create temporary directory");
 		}
 	}
-
-	@Test
-	public void staticNotFoundRequestTest() throws Exception {
-		JiggityServer srv = new JiggityServer();
-		try {
-			String testPrefix = "staticNotFoundRequestTest";
-			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
-			
-			tstConf.git.commit().setMessage("init").call();
-
-			createDefaultConfFile(testPrefix, tstConf.rootDir);
-			
-			srv.start(tstConf.rootDir);
-	
-			{
-				Response resp = sendGet("http://localhost:8090/notfound.txt");
-				assertEquals(404, resp.code);
-			}
-			{
-				Response resp = sendPost("http://localhost:8090/notfound.txt", "");
-				assertEquals(404, resp.code);
-			}
-		
-		} finally {
-			srv.stop();
-		}
-	}
 	
 	@Test
-	public void processorThrowsServerExceptionTest() throws Exception {
+	public void processorThrowsRuntimeExceptionTest() throws Exception {
 		JiggityServer srv = new JiggityServer();
 		try {
-			String testPrefix = "processorThrowsServerExceptionTest";
+			String testPrefix = "processorThrowsRuntimeExceptionTest";
 			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] code = new String[] {
@@ -87,7 +60,7 @@ public class ExceptionsTest {
 						
 					"	@Override",
 					"	public boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
-					"		throw new JGIServerException(Code.INTERNAL_ERROR);",
+					"		throw new RuntimeException(\"I'm a wild exception\");",
 					"	}",
 					"}"
 			};
@@ -113,105 +86,10 @@ public class ExceptionsTest {
 	}
 
 	@Test
-	public void processorThrowsClientExceptionTest() throws Exception {
+	public void scriptThrowsRuntimeExceptionTest() throws Exception {
 		JiggityServer srv = new JiggityServer();
 		try {
-			String testPrefix = "processorThrowsClientExceptionTest";
-			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
-			
-			String[] code = new String[] {
-					"package pkg;",
-					"import java.io.IOException;",
-					"import java.io.InputStream;",
-	
-					"import javax.servlet.http.HttpServletRequest;",
-					"import javax.servlet.http.HttpServletResponse;",
-	
-					"import bfbc.jiggity.api.JGIProcessor;",
-					"import bfbc.jiggity.api.exceptions.JGIException;",
-					"import bfbc.jiggity.api.exceptions.JGIClientException;",
-					"import bfbc.jiggity.api.exceptions.JGIClientException.Code;",
-	
-					"public class Processor extends JGIProcessor {",
-						
-					"	@Override",
-					"	public boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
-					"		throw new JGIClientException(Code.FORBIDDEN);",
-					"	}",
-					"}"
-			};
-			
-			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
-			tstConf.git.commit().setMessage("init").call();
-			
-			createDefaultConfFile(testPrefix, tstConf.rootDir);
-			
-			srv.start(tstConf.rootDir);
-			
-			{
-				int readTest = sendGet("http://localhost:8090/some_request").code;
-				assertEquals(JGIClientException.Code.FORBIDDEN.httpCode, readTest);
-			}
-			{
-				int readTest = sendGet("http://localhost:8090/some_request").code;
-				assertEquals(JGIClientException.Code.FORBIDDEN.httpCode, readTest);
-			}
-		} finally {
-			srv.stop();
-		}
-	}
-
-	@Test
-	public void scriptThrowsClientExceptionTest() throws Exception {
-		JiggityServer srv = new JiggityServer();
-		try {
-			String testPrefix = "scriptThrowsClientExceptionTest";
-			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
-			
-			String[] code = new String[] {
-				"package somepkg;",
-	
-				"import javax.servlet.http.*;",
-	
-				"import bfbc.jiggity.api.exceptions.JGIException;",
-				"import bfbc.jiggity.api.exceptions.JGIClientException;",
-
-				"import bfbc.jiggity.api.JGIScript;",
-	
-				"public class CallMe extends JGIScript {",
-				"	@Override",
-				"	public void onExecute(String target, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
-				"		throw new JGIClientException(JGIClientException.Code.BAD_REQUEST);",
-				"	}",
-				"}"
-			};
-			
-			addFileToGitIndex(tstConf.git, tstConf.gitDir, "CallMe.java", code);
-			tstConf.git.commit().setMessage("init").call();
-	
-			createDefaultConfFile(testPrefix, tstConf.rootDir);
-			
-			srv.start(tstConf.rootDir);
-			
-			{
-				int respCode = sendGet("http://localhost:8090/CallMe.java").code;
-				assertEquals(400, respCode);
-			}
-			{
-				int respCode = sendPost("http://localhost:8090/CallMe.java", "").code;
-				assertEquals(400, respCode);
-			}
-			
-		} finally {
-			srv.stop();
-		}
-	}
-	
-	@Test
-	public void scriptThrowsServerExceptionTest() throws Exception {
-		JiggityServer srv = new JiggityServer();
-		try {
-			String testPrefix = "scriptThrowsServerExceptionTest";
+			String testPrefix = "scriptThrowsRuntimeExceptionTest";
 			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] code = new String[] {
@@ -227,7 +105,7 @@ public class ExceptionsTest {
 				"public class CallMe extends JGIScript {",
 				"	@Override",
 				"	public void onExecute(String target, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
-				"		throw new JGIServerException(JGIServerException.Code.NOT_IMPLEMENTED);",
+				"		throw new RuntimeException(\"I'm a wild exception\");",
 				"	}",
 				"}"
 			};
@@ -241,13 +119,57 @@ public class ExceptionsTest {
 			
 			{
 				int respCode = sendGet("http://localhost:8090/CallMe.java").code;
-				assertEquals(501, respCode);
+				assertEquals(JGIServerException.Code.INTERNAL_ERROR.httpCode, respCode);
 			}
 			{
 				int respCode = sendPost("http://localhost:8090/CallMe.java", "").code;
-				assertEquals(501, respCode);
+				assertEquals(JGIServerException.Code.INTERNAL_ERROR.httpCode, respCode);
 			}
 			
+		} finally {
+			srv.stop();
+		}
+	}
+	
+	@Test
+	public void exceptionHandlerThrowsRuntimeExceptionTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "exceptionHandlerThrowsRuntimeExceptionTest";
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
+			
+			String[] code = new String[] {
+					"import java.io.IOException;",
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+
+					"import bfbc.jiggity.api.JGIExceptionHandler;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIClientException;",
+
+					"public class ExHandler extends JGIExceptionHandler {",
+					"	@Override",
+					"	public boolean onError(String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) {",
+					"		throw new RuntimeException(\"I'm a wild exception\");",
+					"	}",
+					"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "ExHandler.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				int respCode = sendGet("http://localhost:8090/notfound.txt").code;
+				assertEquals(JGIServerException.Code.INTERNAL_ERROR.httpCode, respCode);
+			}
+			{
+				int respCode = sendPost("http://localhost:8090/notfound.txt", "").code;
+				assertEquals(JGIServerException.Code.INTERNAL_ERROR.httpCode, respCode);
+			}
 		} finally {
 			srv.stop();
 		}
