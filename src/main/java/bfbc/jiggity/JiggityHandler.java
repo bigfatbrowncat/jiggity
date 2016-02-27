@@ -203,7 +203,7 @@ public class JiggityHandler extends AbstractHandler {
     }
     
     
-    private void handleError(ObjectId lastCommitId, String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) throws Exception {
+    private void handleError(ObjectId lastCommitId, String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) {
     	logger.info("Responding with error response to the client (request: \"" + target + "\" from " + request.getRemoteAddr() + ", exception " + exception);
     	
         // Searching for a proper exception processor
@@ -333,7 +333,11 @@ public class JiggityHandler extends AbstractHandler {
 	    			e.printStackTrace();
 	    			
 	        		handleError(lastCommitId, target, request, response, e);
+	    		} catch (JGIServerException e) {
+	    			logger.error("Server exception occured with code " + e.getCode().httpCode + ": " + e.getMessage());
+	    			e.printStackTrace();
 	    			
+	        		handleError(lastCommitId, target, request, response, e);
 	    		} 
 	        }
 		} catch (Exception e) {

@@ -216,6 +216,7 @@ public class BasicTest {
 			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
 			
 			String[] code = new String[] {
+					"import java.io.IOException;",
 					"import javax.servlet.http.HttpServletRequest;",
 					"import javax.servlet.http.HttpServletResponse;",
 
@@ -225,10 +226,14 @@ public class BasicTest {
 
 					"public class ExHandler extends JGIExceptionHandler {",
 					"	@Override",
-					"	public boolean onError(String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) throws Exception {",
-					"		response.getWriter().println(\"Error occured with code \" + ((JGIClientException)exception).getCode().httpCode);",
-					"		response.getWriter().close();",
-					"		return true;",
+					"	public boolean onError(String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) {",
+					"		try {",
+					"			response.getWriter().println(\"Error occured with code \" + ((JGIClientException)exception).getCode().httpCode);",
+					"			response.getWriter().close();",
+					"			return true;",
+					"		} catch (IOException e) {",
+					"			return false;",
+					"		}",
 					"	}",
 					"}"
 			};
