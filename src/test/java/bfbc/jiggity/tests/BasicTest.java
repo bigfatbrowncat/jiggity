@@ -93,6 +93,8 @@ public class BasicTest {
 				"import javax.servlet.http.*;",
 	
 				"import bfbc.jiggity.api.exceptions.JGIException;",
+				"import bfbc.jiggity.api.exceptions.JGIServerException;",
+
 				"import bfbc.jiggity.api.JGIScript;",
 	
 				"public class CallMe extends JGIScript {",
@@ -103,7 +105,7 @@ public class BasicTest {
 				"			response.getOutputStream().println(\"" + lines[1] + "\");",
 				"			response.getOutputStream().close();",
 				"		} catch (IOException e) {",
-				"			e.printStackTrace();",
+				"			throw new JGIServerException(JGIServerException.Code.INTERNAL_ERROR, e);",
 				"		}",
 				"	}",
 				"}"

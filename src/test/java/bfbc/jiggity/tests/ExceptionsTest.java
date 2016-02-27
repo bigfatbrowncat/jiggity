@@ -161,4 +161,95 @@ public class ExceptionsTest {
 		}
 	}
 
+	@Test
+	public void scriptThrowsClientExceptionTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "scriptThrowsClientExceptionTest";
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
+			
+			String[] code = new String[] {
+				"package somepkg;",
+	
+				"import javax.servlet.http.*;",
+	
+				"import bfbc.jiggity.api.exceptions.JGIException;",
+				"import bfbc.jiggity.api.exceptions.JGIClientException;",
+
+				"import bfbc.jiggity.api.JGIScript;",
+	
+				"public class CallMe extends JGIScript {",
+				"	@Override",
+				"	public void onExecute(String target, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+				"		throw new JGIClientException(JGIClientException.Code.BAD_REQUEST);",
+				"	}",
+				"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "CallMe.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				int respCode = sendGet("http://localhost:8090/CallMe.java").code;
+				assertEquals(400, respCode);
+			}
+			{
+				int respCode = sendPost("http://localhost:8090/CallMe.java", "").code;
+				assertEquals(400, respCode);
+			}
+			
+		} finally {
+			srv.stop();
+		}
+	}
+	
+	@Test
+	public void scriptThrowsServerExceptionTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "scriptThrowsServerExceptionTest";
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
+			
+			String[] code = new String[] {
+				"package somepkg;",
+	
+				"import javax.servlet.http.*;",
+	
+				"import bfbc.jiggity.api.exceptions.JGIException;",
+				"import bfbc.jiggity.api.exceptions.JGIServerException;",
+
+				"import bfbc.jiggity.api.JGIScript;",
+	
+				"public class CallMe extends JGIScript {",
+				"	@Override",
+				"	public void onExecute(String target, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+				"		throw new JGIServerException(JGIServerException.Code.NOT_IMPLEMENTED);",
+				"	}",
+				"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "CallMe.java", code);
+			tstConf.git.commit().setMessage("init").call();
+	
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				int respCode = sendGet("http://localhost:8090/CallMe.java").code;
+				assertEquals(501, respCode);
+			}
+			{
+				int respCode = sendPost("http://localhost:8090/CallMe.java", "").code;
+				assertEquals(501, respCode);
+			}
+			
+		} finally {
+			srv.stop();
+		}
+	}
 }
