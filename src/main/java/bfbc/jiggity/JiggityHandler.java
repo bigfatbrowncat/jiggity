@@ -1,5 +1,6 @@
 package bfbc.jiggity;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,11 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import javax.imageio.stream.MemoryCacheImageOutputStream;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
@@ -211,6 +214,7 @@ public class JiggityHandler extends AbstractHandler {
         for (Object obj : processorObjects.get(lastCommitId).scripts.values()) {
         	if (obj instanceof JGIExceptionHandler) {
 	        	JGIExceptionHandler processor = (JGIExceptionHandler)obj;
+	        	response.resetBuffer();	// We are resetting the buffer after scripts or processors
 	        	requestExceptionProcessorFound = processor.onError(target, request, response, exception);
 	        	if (requestExceptionProcessorFound) {
 	                logger.info("Error processed by " + processor.getClass().getCanonicalName());
@@ -304,7 +308,10 @@ public class JiggityHandler extends AbstractHandler {
 	                    for (Object obj : processorObjects.get(lastCommitId).scripts.values()) {
 	                    	if (obj instanceof JGIProcessor) {
 		                    	JGIProcessor processor = (JGIProcessor)obj;
+		                    	
+		                    	// Creating a data output
 		                    	requestProcessorFound = processor.onRequest(target, fileObjectInputStream, request, response);
+		                    	
 		                    	if (requestProcessorFound) {
 				                    logger.info("Request \"" + target + "\" from " + request.getRemoteAddr() + " processed by " + processor.getClass().getName());
 									break;
@@ -338,7 +345,12 @@ public class JiggityHandler extends AbstractHandler {
 	    			e.printStackTrace();
 	    			
 	        		handleError(lastCommitId, target, request, response, e);
-	    		} 
+	    		} catch (Exception e) {
+	    			logger.error("General server exception occured: " + e.getMessage());
+	    			e.printStackTrace();
+	    			
+	        		handleError(lastCommitId, target, request, response, new JGIServerException(Code.INTERNAL_ERROR, e));
+	    		}
 	        }
 		} catch (Exception e) {
 			logger.error("General server exception occured: " + e.getMessage());

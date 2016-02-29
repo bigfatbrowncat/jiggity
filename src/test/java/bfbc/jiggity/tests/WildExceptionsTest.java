@@ -174,4 +174,79 @@ public class WildExceptionsTest {
 			srv.stop();
 		}
 	}
+	
+	@Test
+	public void exceptionHandlerCatchesWildExceptionTest() throws Exception {
+		JiggityServer srv = new JiggityServer();
+		try {
+			String testPrefix = "exceptionHandlerTest";
+			TestConf tstConf = createGitForServer(tmpDir, testPrefix);
+			
+			String[] code = new String[] {
+					"package pkg;",
+					"import java.io.IOException;",
+					"import java.io.InputStream;",
+	
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+	
+					"import bfbc.jiggity.api.JGIProcessor;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException.Code;",
+	
+					"public class Processor extends JGIProcessor {",
+						
+					"	@Override",
+					"	public boolean onRequest(String target, InputStream fileStream, HttpServletRequest request, HttpServletResponse response) throws JGIException {",
+					"		throw new RuntimeException(\"I'm a wild exception\");",
+					"	}",
+					"}"
+			};
+			
+			String[] excHandlerCode = new String[] {
+					"import java.io.IOException;",
+					"import javax.servlet.http.HttpServletRequest;",
+					"import javax.servlet.http.HttpServletResponse;",
+
+					"import bfbc.jiggity.api.JGIExceptionHandler;",
+					"import bfbc.jiggity.api.exceptions.JGIException;",
+					"import bfbc.jiggity.api.exceptions.JGIServerException;",
+
+					"public class ExHandler extends JGIExceptionHandler {",
+					"	@Override",
+					"	public boolean onError(String target, HttpServletRequest request, HttpServletResponse response, JGIException exception) {",
+					"		try {",
+					"			response.getWriter().println(\"Error occured with code \" + ((JGIServerException)exception).getCode().httpCode);",
+					"			response.getWriter().close();",
+					"			return true;",
+					"		} catch (IOException e) {",
+					"			return false;",
+					"		}",
+					"	}",
+					"}"
+			};
+			
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "Processor.java", code);
+			addFileToGitIndex(tstConf.git, tstConf.gitDir, "ExHandler.java", excHandlerCode);
+			tstConf.git.commit().setMessage("init").call();
+	
+			createDefaultConfFile(testPrefix, tstConf.rootDir);
+			
+			srv.start(tstConf.rootDir);
+			
+			{
+				String readTest = sendGet("http://localhost:8090/somefile.txt").text;
+				String[] readLines = readTest.split("\n");
+				assertEquals("Error occured with code 500", readLines[0]);
+			}
+			{
+				String readTest = sendPost("http://localhost:8090/somefile.txt", "").text;
+				String[] readLines = readTest.split("\n");
+				assertEquals("Error occured with code 500", readLines[0]);
+			}
+		} finally {
+			srv.stop();
+		}
+	}
 }
